@@ -1,6 +1,7 @@
 {
   "domain": "orcastrator",
   "name": "Orcastrator",
+  "categories": ["computers_network"],
   "codeowners": ["@Ntrondle"],
   "config_flow": true,
   "dependencies": ["http", "persistent_notification"],
