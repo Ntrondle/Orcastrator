@@ -1,0 +1,20 @@
+[project]
+name = "orcastrator"
+version = "0.1.0"
+description = "Home Assistant integration: OrcaSlicer -> power on printer -> wait for Klipper -> print"
+requires-python = ">=3.13"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components"]

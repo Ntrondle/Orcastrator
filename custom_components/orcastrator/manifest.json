@@ -1,0 +1,13 @@
+{
+  "domain": "orcastrator",
+  "name": "Orcastrator",
+  "codeowners": ["@Ntrondle"],
+  "config_flow": true,
+  "dependencies": ["http", "persistent_notification"],
+  "documentation": "https://github.com/Ntrondle/Orcastrator",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Ntrondle/Orcastrator/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

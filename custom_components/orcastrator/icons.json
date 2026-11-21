@@ -1,0 +1,34 @@
+{
+  "entity": {
+    "sensor": {
+      "job": {
+        "default": "mdi:printer-3d",
+        "state": {
+          "idle": "mdi:printer-3d",
+          "checking_printer": "mdi:printer-3d-nozzle-outline",
+          "powering_on": "mdi:power-plug",
+          "waiting_for_printer": "mdi:timer-sand",
+          "uploading": "mdi:cloud-upload",
+          "print_started": "mdi:printer-3d-nozzle",
+          "print_queued": "mdi:tray-full",
+          "uploaded": "mdi:check-circle-outline",
+          "cancelled": "mdi:cancel",
+          "failed": "mdi:alert-circle"
+        }
+      }
+    },
+    "button": {
+      "cancel_job": {
+        "default": "mdi:cancel"
+      }
+    },
+    "switch": {
+      "auto_power_on": {
+        "default": "mdi:power-plug"
+      },
+      "firmware_restart": {
+        "default": "mdi:restart-alert"
+      }
+    }
+  }
+}
