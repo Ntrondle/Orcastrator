@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from aiohttp import web
 
@@ -16,6 +17,7 @@ def make_gcode(
     notes: str | None = None,
     preset: str | None = VORON_PRESET,
     filler_bytes: int = 0,
+    newline: str = "\n",
 ) -> bytes:
     """Rough shape of an OrcaSlicer 2.5 G-code file."""
     head = [
@@ -38,7 +40,7 @@ def make_gcode(
     head += ["print_start EXTRUDER=240 BED=100 CHAMBER=0 TOOL=0", "G1 X10 Y10 F3000"]
     filler = b""
     if filler_bytes:
-        line = b"G1 X100.123 Y100.456 E0.0123\n"
+        line = f"G1 X100.123 Y100.456 E0.0123{newline}".encode()
         filler = line * (filler_bytes // len(line) + 1)
     tail = ["; EXECUTABLE_BLOCK_END", "", "; CONFIG_BLOCK_START"]
     if notes is not None:
@@ -51,7 +53,7 @@ def make_gcode(
     if preset:
         tail.append(f"; printer_settings_id = {preset}")
     tail += ["; printer_model = ", "; CONFIG_BLOCK_END", ""]
-    return ("\n".join(head) + "\n").encode() + filler + "\n".join(tail).encode()
+    return (newline.join(head) + newline).encode() + filler + newline.join(tail).encode()
 
 
 @dataclass
@@ -67,15 +69,28 @@ class FakeMoonraker:
 
     powered: Callable[[], bool]
     boot_states: list[str] = field(default_factory=lambda: ["startup", "error"])
-    # State after boot_states run out; becomes "ready" on firmware restart.
+    # State after boot_states run out; becomes "ready" after `restarts_needed` restarts.
     settled_state: str = "error"
+    restarts_needed: int = 1
     state_message: str = "mcu 'toolhead': Unable to connect"
+    klippy_connected: bool = True
+    api_key: str | None = None
+    print_state: str = "standby"
+    print_filename: str = ""
+    idle_state: str = "Idle"
+    heaters: dict[str, tuple[float, float]] = field(
+        default_factory=lambda: {"extruder": (24.0, 0.0), "heater_bed": (23.0, 0.0)}
+    )
+    start_print_ok: bool = True
+    print_queued: bool = False
     uploads: list[Upload] = field(default_factory=list)
     restarts: int = 0
+    shutdowns: int = 0
     _polls: int = 0
+    _shutdown_called: bool = False
 
     def klippy_state(self) -> str:
-        if self.restarts:
+        if self.restarts >= self.restarts_needed and self.settled_state in ("error", "shutdown"):
             return "ready"
         if self._polls < len(self.boot_states):
             return self.boot_states[self._polls]
@@ -85,39 +100,71 @@ class FakeMoonraker:
         app = web.Application(client_max_size=1024**3)
         app.router.add_get("/server/info", self._server_info)
         app.router.add_get("/printer/info", self._printer_info)
+        app.router.add_get("/printer/objects/query", self._objects_query)
         app.router.add_post("/printer/firmware_restart", self._firmware_restart)
+        app.router.add_post("/machine/shutdown", self._machine_shutdown)
         app.router.add_post("/server/files/upload", self._upload)
         return app
 
-    def _offline(self) -> web.Response | None:
-        if not self.powered():
+    def _gate(self, request: web.Request) -> web.Response | None:
+        if self._shutdown_called or not self.powered():
             return web.Response(status=502, text="Bad Gateway")
+        if self.api_key and request.headers.get("X-Api-Key") != self.api_key:
+            return web.json_response(
+                {"error": {"code": 401, "message": "Unauthorized"}}, status=401
+            )
         return None
 
     async def _server_info(self, request: web.Request) -> web.Response:
-        if (resp := self._offline()) is not None:
+        if (resp := self._gate(request)) is not None:
             return resp
         state = self.klippy_state()
         self._polls += 1
         return web.json_response(
-            {"result": {"klippy_connected": True, "klippy_state": state}}
+            {"result": {"klippy_connected": self.klippy_connected, "klippy_state": state}}
         )
 
     async def _printer_info(self, request: web.Request) -> web.Response:
-        if (resp := self._offline()) is not None:
+        if (resp := self._gate(request)) is not None:
             return resp
         return web.json_response(
             {"result": {"state": self.klippy_state(), "state_message": self.state_message}}
         )
 
+    async def _objects_query(self, request: web.Request) -> web.Response:
+        if (resp := self._gate(request)) is not None:
+            return resp
+        status: dict[str, Any] = {}
+        for key in request.query:
+            if key == "print_stats":
+                status["print_stats"] = {
+                    "state": self.print_state,
+                    "filename": self.print_filename,
+                }
+            elif key == "idle_timeout":
+                status["idle_timeout"] = {"state": self.idle_state}
+            elif key == "heaters":
+                status["heaters"] = {"available_heaters": list(self.heaters)}
+            elif key in self.heaters:
+                temp, target = self.heaters[key]
+                status[key] = {"temperature": temp, "target": target}
+        return web.json_response({"result": {"status": status}})
+
     async def _firmware_restart(self, request: web.Request) -> web.Response:
-        if (resp := self._offline()) is not None:
+        if (resp := self._gate(request)) is not None:
             return resp
         self.restarts += 1
         return web.json_response({"result": "ok"})
 
+    async def _machine_shutdown(self, request: web.Request) -> web.Response:
+        if (resp := self._gate(request)) is not None:
+            return resp
+        self.shutdowns += 1
+        self._shutdown_called = True
+        return web.json_response({"result": "ok"})
+
     async def _upload(self, request: web.Request) -> web.Response:
-        if (resp := self._offline()) is not None:
+        if (resp := self._gate(request)) is not None:
             return resp
         if self.klippy_state() != "ready":
             return web.json_response(
@@ -129,13 +176,15 @@ class FakeMoonraker:
         content = file.file.read()
         fields = {k: str(v) for k, v in data.items() if k != "file"}
         self.uploads.append(Upload(file.filename, fields, content))
-        started = fields.get("print") == "true"
+        want_start = fields.get("print") == "true"
+        started = want_start and self.start_print_ok and not self.print_queued
+        queued = want_start and self.print_queued
         return web.json_response(
             {
                 "result": {
                     "item": {"path": file.filename, "root": "gcodes"},
                     "print_started": started,
-                    "print_queued": False,
+                    "print_queued": queued,
                     "action": "create_file",
                 }
             },

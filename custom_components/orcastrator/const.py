@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from .printer import PrinterRuntime
 
 DOMAIN: Final = "orcastrator"
-VERSION: Final = "0.1.0"
+VERSION: Final = "0.2.0"
 
 # Registry of configured printers, keyed by config entry id.
 DATA_PRINTERS: HassKey[dict[str, PrinterRuntime]] = HassKey(DOMAIN)
@@ -25,6 +25,10 @@ CONF_POLL_INTERVAL: Final = "poll_interval"
 CONF_ERROR_GRACE: Final = "error_grace"
 CONF_RESTART_BACKOFF: Final = "restart_backoff"
 CONF_NOTIFY_ON_ERROR: Final = "notify_on_error"
+CONF_AUTO_POWER_OFF: Final = "auto_power_off"
+CONF_IDLE_TIMEOUT: Final = "idle_timeout"
+CONF_COOLDOWN_TEMP: Final = "cooldown_temp"
+CONF_GRACEFUL_SHUTDOWN: Final = "graceful_shutdown"
 SECTION_ADVANCED: Final = "advanced"
 
 DEFAULT_AUTO_POWER_ON: Final = True
@@ -35,6 +39,10 @@ DEFAULT_POLL_INTERVAL: Final = 3
 DEFAULT_ERROR_GRACE: Final = 10
 DEFAULT_RESTART_BACKOFF: Final = 20
 DEFAULT_NOTIFY_ON_ERROR: Final = True
+DEFAULT_AUTO_POWER_OFF: Final = False
+DEFAULT_IDLE_TIMEOUT: Final = 30
+DEFAULT_COOLDOWN_TEMP: Final = 50
+DEFAULT_GRACEFUL_SHUTDOWN: Final = True
 
 # OrcaSlicer's "Octo/Klipper" host type is pointed at http://<ha>:8123/api/orcastrator
 URL_BASE: Final = "/api/orcastrator"

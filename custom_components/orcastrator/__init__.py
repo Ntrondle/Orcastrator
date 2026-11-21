@@ -3,8 +3,7 @@ printer on, waits for Klipper and starts the print."""
 
 from __future__ import annotations
 
-import time
-
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -23,6 +22,7 @@ type OrcastratorConfigEntry = ConfigEntry[PrinterRuntime]
 __all__ = [
     "CONFIG_SCHEMA",
     "OrcastratorConfigEntry",
+    "async_remove_entry",
     "async_setup",
     "async_setup_entry",
     "async_unload_entry",
@@ -35,9 +35,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the OctoPrint-compatible endpoints once."""
     printers: dict[str, PrinterRuntime] = {}
     hass.data[DATA_PRINTERS] = printers
+    await hass.async_add_executor_job(_purge_spool)
     hass.http.register_view(OrcastratorVersionView())
     hass.http.register_view(OrcastratorUploadView())
-    await hass.async_add_executor_job(_purge_spool)
     return True
 
 
@@ -45,33 +45,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: OrcastratorConfigEntry) 
     """Set up one printer."""
     runtime = PrinterRuntime(hass, entry, printer_config(entry_settings(entry)))
     entry.runtime_data = runtime
-    hass.data[DATA_PRINTERS][entry.entry_id] = runtime
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    hass.data[DATA_PRINTERS][entry.entry_id] = runtime
+    runtime.async_start()
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: OrcastratorConfigEntry) -> bool:
-    """Unload a printer; its running job (if any) is cancelled."""
-    hass.data[DATA_PRINTERS].pop(entry.entry_id, None)
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    """Unload a printer; cancel running/queued jobs cleanly."""
+    printers = hass.data.get(DATA_PRINTERS) or {}
+    runtime = printers.pop(entry.entry_id, None)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if not unload_ok:
+        if runtime is not None:
+            printers[entry.entry_id] = runtime
+        return False
+    if runtime is not None:
+        await runtime.async_shutdown()
+    return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: OrcastratorConfigEntry) -> None:
+    """Dismiss any lingering persistent notification when a printer is deleted."""
+    persistent_notification.async_dismiss(hass, f"orcastrator_{entry.entry_id}")
 
 
 async def _async_reload(hass: HomeAssistant, entry: OrcastratorConfigEntry) -> None:
     runtime = getattr(entry, "runtime_data", None)
-    if runtime is not None and runtime.consume_suppress_reload():
+    if runtime is not None and printer_config(entry_settings(entry)) == runtime.config:
         return
-    await hass.config_entries.async_reload(entry.entry_id)
+    hass.config_entries.async_schedule_reload(entry.entry_id)
 
 
 def _purge_spool() -> None:
-    """Drop files left behind by a restart in the middle of a job."""
-    if not SPOOL_DIR.is_dir():
+    """Drop files left behind by a restart or crash."""
+    if SPOOL_DIR.is_symlink() or not SPOOL_DIR.is_dir():
         return
-    cutoff = time.time() - 24 * 3600
     for path in SPOOL_DIR.iterdir():
         try:
-            if path.stat().st_mtime < cutoff:
+            if not path.is_symlink() and path.is_file():
                 path.unlink()
         except OSError:
             pass

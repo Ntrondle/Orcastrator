@@ -1,0 +1,195 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ajouter une imprimante",
+        "description": "Pointez OrcaSlicer (type d'hôte Octo/Klipper) vers `{url}` avec un jeton d'accès longue durée Home Assistant comme clé API. Chaque fichier tranché est routé vers l'imprimante dont le nom ou l'alias correspond au tag `orcastrator_printer = MyPrinter` (Notes de l'imprimante dans OrcaSlicer) ou au nom du profil d'imprimante OrcaSlicer.",
+        "data": {
+          "name": "Nom",
+          "url": "URL Moonraker",
+          "power_entity": "Interrupteur d'alimentation",
+          "aliases": "Alias / noms de profil OrcaSlicer",
+          "api_key": "Clé API Moonraker"
+        },
+        "data_description": {
+          "name": "Également la valeur du tag `orcastrator_printer` dans le G-code.",
+          "url": "ex. http://192.168.1.50 ou http://192.168.1.50:7125",
+          "power_entity": "Allumé lorsqu'une impression arrive et que l'imprimante est hors ligne ou éteinte.",
+          "aliases": "Autres noms routés vers cette imprimante, ex. le nom exact du profil OrcaSlicer.",
+          "api_key": "Uniquement si Moonraker en exige une."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Paramètres avancés",
+            "description": "Allumage automatique, délais de démarrage, redémarrage Klipper, extinction en veille et notifications.",
+            "data": {
+              "auto_power_on": "Allumer l'alimentation automatiquement",
+              "boot_timeout": "Délai maximal de démarrage",
+              "firmware_restart": "Redémarrage firmware si Klipper démarre en erreur",
+              "max_restarts": "Nombre maximal de redémarrages firmware",
+              "poll_interval": "Intervalle de vérification Moonraker",
+              "error_grace": "Délai de grâce en erreur",
+              "restart_backoff": "Délai entre deux redémarrages firmware",
+              "notify_on_error": "Créer une notification persistante en cas d'échec",
+              "auto_power_off": "Extinction automatique en veille",
+              "idle_timeout": "Délai d'inactivité avant extinction",
+              "cooldown_temp": "Température maximale de la buse avant coupure",
+              "graceful_shutdown": "Éteindre l'hôte Moonraker proprement avant de couper le courant"
+            },
+            "data_description": {
+              "auto_power_on": "Allume automatiquement l'interrupteur configuré lorsqu'une tâche arrive pour une imprimante hors ligne ou éteinte.",
+              "boot_timeout": "Temps maximal d'attente pour que Klipper passe à l'état ready après réception d'une tâche.",
+              "firmware_restart": "Envoie FIRMWARE_RESTART si une imprimante fraîchement allumée démarre avec une erreur de connexion MCU récupérable. Jamais effectué pour une erreur thermique, arrêt d'urgence ou imprimante déjà allumée.",
+              "max_restarts": "Nombre maximal de tentatives automatiques de FIRMWARE_RESTART par tâche.",
+              "poll_interval": "Fréquence d'interrogation de Moonraker pendant l'attente de Klipper.",
+              "error_grace": "Durée pendant laquelle Klipper doit rester en error/shutdown avant de tenter un FIRMWARE_RESTART ou d'échouer.",
+              "restart_backoff": "Attente minimale entre deux tentatives consécutives de FIRMWARE_RESTART.",
+              "notify_on_error": "Affiche une notification persistante Home Assistant lorsqu'une tâche échoue ou ne peut pas démarrer.",
+              "auto_power_off": "Coupe automatiquement l'alimentation une fois que l'imprimante est inactive (aucune impression ni chauffe active) et refroidie.",
+              "idle_timeout": "Durée pendant laquelle l'imprimante doit rester inactive et sans consigne de chauffe avant l'extinction.",
+              "cooldown_temp": "Attend que tous les extrudeurs descendent sous cette température avant de couper le courant.",
+              "graceful_shutdown": "Envoie une commande d'arrêt système à Moonraker et attend son arrêt complet avant d'éteindre la prise."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "URL invalide (utilisez http/https sans paramètres de requête, fragment ou identifiants intégrés).",
+      "invalid_name": "Le nom doit contenir au moins une lettre ou un chiffre.",
+      "invalid_alias": "Chaque alias doit contenir au moins une lettre ou un chiffre.",
+      "alias_conflict": "L'un des alias est déjà utilisé par une autre imprimante.",
+      "invalid_timing": "Doit être inférieur au délai maximal de démarrage.",
+      "already_configured": "Une autre imprimante utilise déjà ce nom ou cet alias."
+    },
+    "abort": {
+      "already_configured": "Une imprimante portant ce nom existe déjà."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Paramètres de l'imprimante",
+        "description": "Point de terminaison OrcaSlicer : `{url}` (utilisez un jeton d'accès longue durée Home Assistant comme clé API).",
+        "data": {
+          "name": "Nom",
+          "url": "URL Moonraker",
+          "power_entity": "Interrupteur d'alimentation",
+          "aliases": "Alias / noms de profil OrcaSlicer",
+          "api_key": "Clé API Moonraker"
+        },
+        "data_description": {
+          "name": "Également la valeur du tag `orcastrator_printer` dans le G-code.",
+          "url": "ex. http://192.168.1.50 ou http://192.168.1.50:7125",
+          "power_entity": "Allumé lorsqu'une impression arrive et que l'imprimante est hors ligne ou éteinte.",
+          "aliases": "Autres noms routés vers cette imprimante, ex. le nom exact du profil OrcaSlicer.",
+          "api_key": "Uniquement si Moonraker en exige une."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Paramètres avancés",
+            "description": "Allumage automatique, délais de démarrage, redémarrage Klipper, extinction en veille et notifications.",
+            "data": {
+              "auto_power_on": "Allumer l'alimentation automatiquement",
+              "boot_timeout": "Délai maximal de démarrage",
+              "firmware_restart": "Redémarrage firmware si Klipper démarre en erreur",
+              "max_restarts": "Nombre maximal de redémarrages firmware",
+              "poll_interval": "Intervalle de vérification Moonraker",
+              "error_grace": "Délai de grâce en erreur",
+              "restart_backoff": "Délai entre deux redémarrages firmware",
+              "notify_on_error": "Créer une notification persistante en cas d'échec",
+              "auto_power_off": "Extinction automatique en veille",
+              "idle_timeout": "Délai d'inactivité avant extinction",
+              "cooldown_temp": "Température maximale de la buse avant coupure",
+              "graceful_shutdown": "Éteindre l'hôte Moonraker proprement avant de couper le courant"
+            },
+            "data_description": {
+              "auto_power_on": "Allume automatiquement l'interrupteur configuré lorsqu'une tâche arrive pour une imprimante hors ligne ou éteinte.",
+              "boot_timeout": "Temps maximal d'attente pour que Klipper passe à l'état ready après réception d'une tâche.",
+              "firmware_restart": "Envoie FIRMWARE_RESTART si une imprimante fraîchement allumée démarre avec une erreur de connexion MCU récupérable. Jamais effectué pour une erreur thermique, arrêt d'urgence ou imprimante déjà allumée.",
+              "max_restarts": "Nombre maximal de tentatives automatiques de FIRMWARE_RESTART par tâche.",
+              "poll_interval": "Fréquence d'interrogation de Moonraker pendant l'attente de Klipper.",
+              "error_grace": "Durée pendant laquelle Klipper doit rester en error/shutdown avant de tenter un FIRMWARE_RESTART ou d'échouer.",
+              "restart_backoff": "Attente minimale entre deux tentatives consécutives de FIRMWARE_RESTART.",
+              "notify_on_error": "Affiche une notification persistante Home Assistant lorsqu'une tâche échoue ou ne peut pas démarrer.",
+              "auto_power_off": "Coupe automatiquement l'alimentation une fois que l'imprimante est inactive (aucune impression ni chauffe active) et refroidie.",
+              "idle_timeout": "Durée pendant laquelle l'imprimante doit rester inactive et sans consigne de chauffe avant l'extinction.",
+              "cooldown_temp": "Attend que tous les extrudeurs descendent sous cette température avant de couper le courant.",
+              "graceful_shutdown": "Envoie une commande d'arrêt système à Moonraker et attend son arrêt complet avant d'éteindre la prise."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "URL invalide (utilisez http/https sans paramètres de requête, fragment ou identifiants intégrés).",
+      "invalid_name": "Le nom doit contenir au moins une lettre ou un chiffre.",
+      "invalid_alias": "Chaque alias doit contenir au moins une lettre ou un chiffre.",
+      "alias_conflict": "L'un des alias est déjà utilisé par une autre imprimante.",
+      "invalid_timing": "Doit être inférieur au délai maximal de démarrage.",
+      "already_configured": "Une autre imprimante utilise déjà ce nom ou cet alias."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "job": {
+        "name": "Tâche",
+        "state": {
+          "idle": "Inactif",
+          "checking_printer": "Vérification de l'imprimante",
+          "powering_on": "Mise sous tension",
+          "waiting_for_printer": "En attente de l'imprimante",
+          "uploading": "Envoi en cours",
+          "print_started": "Impression démarrée",
+          "print_queued": "Impression en file d'attente",
+          "uploaded": "Téléversé",
+          "powering_off": "Extinction",
+          "cancelled": "Annulé",
+          "failed": "Échoué"
+        },
+        "state_attributes": {
+          "filename": {
+            "name": "Fichier"
+          },
+          "start_print": {
+            "name": "Lancer l'impression"
+          },
+          "detail": {
+            "name": "Détail"
+          },
+          "last_error": {
+            "name": "Dernière erreur"
+          },
+          "queued_jobs": {
+            "name": "Tâches en attente"
+          },
+          "idle_since": {
+            "name": "Inactif depuis"
+          },
+          "idle_power_off_at": {
+            "name": "Extinction prévue"
+          },
+          "updated": {
+            "name": "Mis à jour"
+          }
+        }
+      }
+    },
+    "button": {
+      "cancel_job": {
+        "name": "Annuler la tâche"
+      }
+    },
+    "switch": {
+      "auto_power_on": {
+        "name": "Allumage automatique"
+      },
+      "auto_power_off": {
+        "name": "Extinction automatique en veille"
+      },
+      "firmware_restart": {
+        "name": "Redémarrage firmware sur erreur de démarrage"
+      }
+    }
+  }
+}

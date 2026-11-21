@@ -7,10 +7,14 @@ For each file it:
 2. turns that printer's power switch on (if the printer is offline or its power
    switch is off — supporting both whole-printer and PSU-only smart plugs),
 3. waits until Moonraker answers and Klipper reports `ready`. If a freshly
-   powered printer boots into an MCU error, it sends `FIRMWARE_RESTART`, up to
-   the configured limit,
-4. uploads the file to Moonraker and starts the print ("Upload and Print") or
-   just stores it ("Upload").
+   powered printer boots into a recoverable MCU connection error, it sends
+   `FIRMWARE_RESTART`, up to the configured limit,
+4. checks that the printer isn't already printing/paused, uploads the file to
+   Moonraker, and starts the print ("Upload and Print") or just stores it
+   ("Upload"),
+5. optionally shuts down and powers off the printer automatically after an idle
+   timeout (default 30 min) once no print or heater target is active and the
+   extruder has cooled down below the safety threshold (default 50 °C).
 
 OrcaSlicer gets its answer as soon as the file is received and the printer is
 identified. Power-on and boot happen in the background. A file that matches no
@@ -53,19 +57,23 @@ OrcaSlicer.
 |---|---|---|
 | Turn on power switch automatically | `true` | Turn on the configured power switch when a job arrives for an offline/off printer |
 | Boot timeout | `300` s | Maximum time to wait for Klipper to report `ready` |
-| Firmware restart if Klipper boots into an error | `true` | Send `FIRMWARE_RESTART` when a freshly powered printer boots into an MCU error |
+| Firmware restart if Klipper boots into an error | `true` | Send `FIRMWARE_RESTART` when a freshly powered printer boots into a recoverable MCU error |
 | Maximum firmware restarts | `3` | Maximum automatic `FIRMWARE_RESTART` attempts per job |
 | Moonraker poll interval | `3` s | How often to poll `/server/info` while waiting |
 | Error grace period | `10` s | Wait before restarting or failing when Klipper enters `error`/`shutdown` |
 | Firmware restart backoff | `20` s | Minimum time between consecutive `FIRMWARE_RESTART` calls |
-| Create persistent notification on failure | `true` | Raise a persistent HA notification when a job fails or cannot auto-start |
+| Create persistent notification on failure | `true` | Raise a persistent HA notification when a job fails or cannot start |
+| Auto power-off when idle | `false` | Automatically power off the printer after it stays idle and cools down |
+| Idle timeout before power-off | `30` min | Minutes the printer must stay idle with no active print or target heater temperature |
+| Maximum extruder temperature for power-off | `50` °C | Wait until all extruders cool below this temperature before cutting power |
+| Shut down Moonraker host before cutting power | `true` | Send `/machine/shutdown` and wait for host halt before turning off the smart plug |
 
 ## OrcaSlicer
 
 For each printer preset:
 
 1. **Printer settings → Notes**: add a line `orcastrator_printer = Voron 2.4`
-   (the Orcastrator printer name; case, spaces and `-`/`_` don't matter).
+   (the Orcastrator printer name; case, accents, spaces and `-`/`_` don't matter).
    You can also put it as a comment on the first line of *Machine start G-code*.
    Without a tag, the OrcaSlicer preset name (`printer_settings_id`) is matched
    against the printer's name and aliases.
@@ -84,16 +92,20 @@ Each configured printer exposes a device with:
 
 - `sensor.<printer>_job`: `idle`, `checking_printer`, `powering_on`,
   `waiting_for_printer`, `uploading`, `print_started`, `print_queued`,
-  `uploaded`, `cancelled`, `failed`. Attributes: `filename`, `start_print`,
-  `detail` (Klipper state while waiting), `last_error`, `queued_jobs`, `updated`.
+  `uploaded`, `powering_off`, `cancelled`, `failed`. Attributes: `filename`,
+  `start_print`, `detail`, `last_error`, `queued_jobs`, `idle_since`,
+  `idle_power_off_at`, `updated`.
 - `button.<printer>_cancel_job`: cancels the currently waiting/uploading job and
   any queued jobs for that printer.
 - `switch.<printer>_auto_power_on`: toggles automatic power-on in place without
   reloading or cancelling active jobs.
+- `switch.<printer>_auto_power_off_when_idle`: toggles idle auto power-off in
+  place without reloading.
 - `switch.<printer>_firmware_restart_on_boot_error`: toggles automatic
-  `FIRMWARE_RESTART` on boot errors in place.
+  `FIRMWARE_RESTART` on recoverable MCU boot errors in place.
 - **Diagnostics**: **Settings → Devices & services → Orcastrator → ⋮ → Download
-  diagnostics** exports redacted config and current runtime state (API keys redacted).
+  diagnostics** exports redacted config and current runtime state (API keys and
+  any URL credentials redacted).
 - Event `orcastrator_job` on every state change (`printer`, `entry_id`, `state`,
   `detail`, `filename`, `error`).
 
@@ -117,9 +129,9 @@ action:
 ```
 
 Jobs for one printer run one at a time. Klipper is only restarted automatically
-when the printer was offline or its power switch was `off` when the job arrived.
-A printer that was already powered on and in `error`/`shutdown` (thermal runaway,
-etc.) fails the job instead.
+when Orcastrator actually powered the printer on and Klipper reports a
+recoverable MCU connection error. Thermal faults, emergency stops (`M112`), or
+errors on an already-powered printer fail the job instead.
 
 `.gcode.3mf` uploads are unpacked (plate chosen by OrcaSlicer's `plateindex`).
 Binary G-code (`.bgcode`) is not supported.

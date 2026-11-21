@@ -7,6 +7,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
 from .const import DOMAIN, VERSION
+from .moonraker import safe_url
 from .printer import PrinterRuntime
 
 
@@ -25,7 +26,7 @@ class OrcastratorEntity(Entity):
             manufacturer="Orcastrator",
             model="Klipper (Moonraker)",
             sw_version=VERSION,
-            configuration_url=runtime.config.url,
+            configuration_url=safe_url(runtime.config.url),
         )
 
     def _sync_from_runtime(self) -> None:
@@ -37,5 +38,6 @@ class OrcastratorEntity(Entity):
         self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
         self._sync_from_runtime()
         self.async_on_remove(self._runtime.async_add_listener(self._handle_runtime_update))

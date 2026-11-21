@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import OrcastratorConfigEntry
-from .const import CONF_AUTO_POWER_ON, CONF_FIRMWARE_RESTART
+from .const import CONF_AUTO_POWER_OFF, CONF_AUTO_POWER_ON, CONF_FIRMWARE_RESTART
 from .entity import OrcastratorEntity
 from .printer import PrinterRuntime
+
+if TYPE_CHECKING:
+    from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+    from . import OrcastratorConfigEntry
 
 
 async def async_setup_entry(
@@ -24,6 +27,7 @@ async def async_setup_entry(
     async_add_entities(
         [
             OrcastratorConfigSwitch(runtime, CONF_AUTO_POWER_ON, "auto_power_on"),
+            OrcastratorConfigSwitch(runtime, CONF_AUTO_POWER_OFF, "auto_power_off"),
             OrcastratorConfigSwitch(runtime, CONF_FIRMWARE_RESTART, "firmware_restart"),
         ]
     )
@@ -42,7 +46,12 @@ class OrcastratorConfigSwitch(OrcastratorEntity, SwitchEntity):
         self._sync_from_runtime()
 
     def _sync_from_runtime(self) -> None:
-        self._attr_is_on = bool(getattr(self._runtime.config, self._option_key))
+        cfg = self._runtime.config
+        self._attr_is_on = bool(getattr(cfg, self._option_key))
+        self._attr_available = (
+            self._option_key not in (CONF_AUTO_POWER_ON, CONF_AUTO_POWER_OFF)
+            or cfg.power_entity is not None
+        )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._runtime.async_set_option(self._option_key, True)

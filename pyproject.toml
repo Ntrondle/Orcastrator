@@ -1,6 +1,6 @@
 [project]
 name = "orcastrator"
-version = "0.1.0"
+version = "0.2.0"
 description = "Home Assistant integration: OrcaSlicer -> power on printer -> wait for Klipper -> print"
 requires-python = ">=3.13"
 

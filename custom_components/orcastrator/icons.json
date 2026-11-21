@@ -12,6 +12,7 @@
           "print_started": "mdi:printer-3d-nozzle",
           "print_queued": "mdi:tray-full",
           "uploaded": "mdi:check-circle-outline",
+          "powering_off": "mdi:power-sleep",
           "cancelled": "mdi:cancel",
           "failed": "mdi:alert-circle"
         }
@@ -24,10 +25,22 @@
     },
     "switch": {
       "auto_power_on": {
-        "default": "mdi:power-plug"
+        "default": "mdi:power-plug",
+        "state": {
+          "off": "mdi:power-plug-off"
+        }
+      },
+      "auto_power_off": {
+        "default": "mdi:power-sleep",
+        "state": {
+          "off": "mdi:power-off"
+        }
       },
       "firmware_restart": {
-        "default": "mdi:restart-alert"
+        "default": "mdi:restart-alert",
+        "state": {
+          "off": "mdi:restart-off"
+        }
       }
     }
   }

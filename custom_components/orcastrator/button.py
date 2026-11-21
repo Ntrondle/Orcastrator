@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from homeassistant.components.button import ButtonEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import OrcastratorConfigEntry
 from .entity import OrcastratorEntity
 from .printer import PrinterRuntime
+
+if TYPE_CHECKING:
+    from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+    from . import OrcastratorConfigEntry
 
 
 async def async_setup_entry(
@@ -27,6 +32,10 @@ class OrcastratorCancelJobButton(OrcastratorEntity, ButtonEntity):
     def __init__(self, runtime: PrinterRuntime) -> None:
         super().__init__(runtime)
         self._attr_unique_id = f"{runtime.entry.entry_id}_cancel_job"
+        self._sync_from_runtime()
+
+    def _sync_from_runtime(self) -> None:
+        self._attr_available = self._runtime.has_active_or_queued_jobs
 
     async def async_press(self) -> None:
         await self._runtime.async_cancel_jobs()
